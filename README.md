@@ -1,7 +1,10 @@
 A simple app to manage and close ports that you choose
 
 install dependencies by running:
-$ npm install
+```$ npm install```
 
 execute by running:
-$ npm run
+```$ npm run```
+
+
+![project screenshot](screenshot.png)
