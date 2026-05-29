@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciador de Portas de Rede</title>
+  <style>
+    /* Variáveis para Tema Claro (Padrão) e Escuro */
+    :root {
+      --bg-color: #f4f4f9;
+      --text-color: #333333;
+      --card-bg: #ffffff;
+      --table-header: #eeeeee;
+      --border-color: #dddddd;
+      --btn-primary: #007bff;
+      --btn-primary-hover: #0056b3;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1e1e24;
+      --text-color: #f4f4f9;
+      --card-bg: #2a2a32;
+      --table-header: #3a3a45;
+      --border-color: #444444;
+      --btn-primary: #0d6efd;
+      --btn-primary-hover: #0b5ed7;
+    }
+
+    body { 
+      font-family: sans-serif; 
+      padding: 20px; 
+      background: var(--bg-color); 
+      color: var(--text-color);
+      transition: background 0.3s, color 0.3s;
+    }
+    
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    h1 { font-size: 20px; margin: 0; }
+    
+    .controls { display: flex; gap: 10px; }
+
+    button { 
+      padding: 8px 14px; 
+      background: var(--btn-primary); 
+      color: white; 
+      border: none; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--btn-primary-hover); }
+    
+    #theme-btn {
+      background: #6c757d;
+    }
+    #theme-btn:hover { background: #5a6268; }
+
+    button.btn-danger { background: #dc3545; }
+    button.btn-danger:hover { background: #bd2130; }
+
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      background: var(--card-bg); 
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background: var(--table-header); }
+    .actions { text-align: right; }
+  </style>
+</head>
+<body>
+
+  <div class="header-container">
+    <h1>🚪 Gerenciador de Portas</h1>
+    <div class="controls">
+      <button id="refresh-btn">🔄 Atualizar Lista</button>
+      <button id="theme-btn">🌓 Alternar Tema</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Porta</th>
+        <th>PID</th>
+        <th>Processo</th>
+        <th class="actions">Ação</th>
+      </tr>
+    </thead>
+    <tbody id="ports-table-body">
+      <tr>
+        <td colspan="4">Carregando portas...</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    const tableBody = document.getElementById('ports-table-body');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const themeBtn = document.getElementById('theme-btn');
+
+    // --- Lógica de Gerenciamento do Tema Escuro ---
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
+    themeBtn.addEventListener('click', () => {
+      let theme = document.documentElement.getAttribute('data-theme');
+      let newTheme = theme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+
+    // --- Lógica das Portas ---
+    async function loadPorts() {
+      tableBody.innerHTML = '<tr><td colspan="4">Buscando portas ativas...</td></tr>';
+      try {
+        const ports = await window.api.listPorts();
+        tableBody.innerHTML = '';
+
+        if (ports.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="4">Nenhuma porta TCP ativa encontrada.</td></tr>';
+          return;
+        }
+
+        ports.forEach(p => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><strong>:${p.port}</strong></td>
+            <td>${p.pid}</td>
+            <td>${p.process}</td>
+            <td class="actions">
+              <button class="btn-danger" onclick="killProcess('${p.pid}', '${p.port}')">Fechar Porta</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="4" style="color:red">Erro ao listar: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function killProcess(pid, port) {
+      if (confirm(`Tem certeza que deseja derrubar o processo da porta ${port}?`)) {
+        const result = await window.api.killPort(pid);
+        if (result.success) {
+          alert(`Porta ${port} liberada com sucesso!`);
+          loadPorts();
+        } else {
+          alert(`Falha ao fechar a porta: ${result.error}\nNota: Você pode precisar rodar o App como Administrador.`);
+        }
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadPorts);
+    loadPorts(); // Carrega ao iniciar
+  </script>
+</body>
+</html>
